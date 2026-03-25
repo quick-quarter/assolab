@@ -1,0 +1,23 @@
+# Dependencies (rebuilt in Docker)
+node_modules
+
+# Next.js build cache
+.next
+
+# Local data (mounted as volume)
+data
+
+# Environment files (injected via docker-compose environment:)
+.env*.local
+
+# Git
+.git
+.gitignore
+
+# Docs & misc
+*.md
+.DS_Store
+*.log
+
+# Dev tools
+.eslintrc*
