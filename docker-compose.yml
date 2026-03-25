@@ -22,7 +22,7 @@ networks:
     driver: bridge
 
 volumes:
-  ollama_models:   # Persists downloaded model weights (~4.4 GB for qwen2.5:7b)
+  ollama_models:   # Persists downloaded model weights (~1 GB for qwen2.5:1.5b)
   sqlite_data:     # Persists the SQLite database
 
 services:
@@ -85,8 +85,8 @@ services:
     # Pull the model from the ollama server (not local socket)
     entrypoint: >
       sh -c "
-        echo '>>> Pulling model ${OLLAMA_MODEL:-qwen2.5:7b}...' &&
-        ollama pull ${OLLAMA_MODEL:-qwen2.5:7b} &&
+        echo '>>> Pulling model ${OLLAMA_MODEL:-qwen2.5:1.5b}...' &&
+        ollama pull ${OLLAMA_MODEL:-qwen2.5:1.5b} &&
         echo '>>> Model ready.'
       "
 
@@ -118,7 +118,7 @@ services:
       - OLLAMA_BASE_URL=http://ollama:11434
       # SearXNG — self-hosted search
       - SEARXNG_BASE_URL=http://searxng:8080
-      - OLLAMA_MODEL=${OLLAMA_MODEL:-qwen2.5:7b}
+      - OLLAMA_MODEL=${OLLAMA_MODEL:-qwen2.5:1.5b}
       # Auth — CHANGE IN PRODUCTION
       - JWT_SECRET=${JWT_SECRET:-change-me-in-production-use-a-32-char-random-string}
       # App URL

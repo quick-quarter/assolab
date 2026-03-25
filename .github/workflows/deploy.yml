@@ -103,16 +103,15 @@ jobs:
             APP_PORT=${{ secrets.APP_PORT || '3000' }}
             JWT_SECRET=${{ secrets.JWT_SECRET }}
             NEXT_PUBLIC_APP_URL=${{ secrets.NEXT_PUBLIC_APP_URL }}
-            OLLAMA_MODEL=${{ secrets.OLLAMA_MODEL || 'qwen2.5:7b' }}
+            OLLAMA_MODEL=${{ secrets.OLLAMA_MODEL || 'qwen2.5:1.5b' }}
             EOF
 
             # Log in to GHCR to pull the image
             echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
 
-            # Pull the new image and restart only the app container
-            # (ollama + searxng keep running — no LLM downtime)
+            # Pull the new app image and bring up all services
             docker compose pull app
-            docker compose up -d --no-deps app
+            docker compose up -d
 
             # Verify health
             echo "Waiting for app to become healthy..."
