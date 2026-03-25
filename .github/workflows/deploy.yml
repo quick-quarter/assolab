@@ -100,6 +100,7 @@ jobs:
             # Write env file
             cat > .env <<EOF
             APP_IMAGE=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
+            APP_PORT=${{ secrets.APP_PORT || '3000' }}
             JWT_SECRET=${{ secrets.JWT_SECRET }}
             NEXT_PUBLIC_APP_URL=${{ secrets.NEXT_PUBLIC_APP_URL }}
             OLLAMA_MODEL=${{ secrets.OLLAMA_MODEL || 'qwen2.5:7b' }}
