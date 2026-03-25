@@ -1,0 +1,23 @@
+use_default_settings: true
+
+server:
+  secret_key: "assolab-searxng-local-secret"
+  bind_address: "0.0.0.0:8080"
+  limiter: false          # no rate limiting in local use
+
+search:
+  default_lang: "fr-FR"  # tells Google/Bing/DDG to return French local results
+  formats:
+    - html
+    - json                # required — disabled by default in SearXNG
+
+engines:
+  - name: google
+    engine: google
+    disabled: false
+  - name: bing
+    engine: bing
+    disabled: false
+  - name: duckduckgo
+    engine: duckduckgo
+    disabled: false

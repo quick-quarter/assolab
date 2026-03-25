@@ -1,0 +1,131 @@
+###############################################################################
+# AssoLab — Docker Compose
+#
+# Services:
+#   ollama       → Llama LLM server (CPU by default)
+#   ollama-init  → One-shot model pull (runs once, then exits)
+#   app          → Next.js 16 application
+#
+# Usage:
+#   docker compose up --build          # first run
+#   docker compose up -d               # subsequent runs (models cached in volume)
+#   docker compose logs -f app         # app logs
+#   docker compose logs -f ollama      # ollama logs
+#   docker compose down                # stop
+#   docker compose down -v             # stop + wipe volumes (clean slate)
+###############################################################################
+
+name: assolab
+
+networks:
+  assolab_net:
+    driver: bridge
+
+volumes:
+  ollama_models:   # Persists downloaded model weights (~4.4 GB for qwen2.5:7b)
+  sqlite_data:     # Persists the SQLite database
+
+services:
+
+  # ─────────────────────────────────────────────────────────────────────────
+  # SearXNG — self-hosted metasearch engine (replaces DDG HTML scraping)
+  # JSON API available at http://searxng:8080/search?q=...&format=json
+  # ─────────────────────────────────────────────────────────────────────────
+  searxng:
+    image: searxng/searxng:latest
+    container_name: assolab_searxng
+    restart: unless-stopped
+    networks:
+      - assolab_net
+    volumes:
+      - ./searxng:/etc/searxng
+    environment:
+      - SEARXNG_BASE_URL=http://searxng:8080
+
+  # ─────────────────────────────────────────────────────────────────────────
+  # Ollama — local LLM inference server
+  # ─────────────────────────────────────────────────────────────────────────
+  ollama:
+    image: ollama/ollama:latest
+    container_name: assolab_ollama
+    restart: unless-stopped
+    networks:
+      - assolab_net
+    ports:
+      - "11434:11434"         # also accessible from host for local npm run dev
+    volumes:
+      - ollama_models:/root/.ollama
+    environment:
+      - OLLAMA_KEEP_ALIVE=24h  # keep model hot in RAM between requests
+    healthcheck:
+      test: ["CMD", "ollama", "list"]
+      interval: 10s
+      timeout: 10s
+      retries: 20
+      start_period: 15s
+
+  # ─────────────────────────────────────────────────────────────────────────
+  # Ollama init — pulls the model once, then exits 0
+  # The app service waits for this to complete before starting.
+  # On subsequent restarts the model is already in the volume → fast pull.
+  # ─────────────────────────────────────────────────────────────────────────
+  ollama-init:
+    image: ollama/ollama:latest
+    container_name: assolab_ollama_init
+    restart: "no"
+    networks:
+      - assolab_net
+    volumes:
+      - ollama_models:/root/.ollama
+    depends_on:
+      ollama:
+        condition: service_healthy
+    environment:
+      - OLLAMA_HOST=http://ollama:11434
+    # Pull the model from the ollama server (not local socket)
+    entrypoint: >
+      sh -c "
+        echo '>>> Pulling model ${OLLAMA_MODEL:-qwen2.5:7b}...' &&
+        ollama pull ${OLLAMA_MODEL:-qwen2.5:7b} &&
+        echo '>>> Model ready.'
+      "
+
+  # ─────────────────────────────────────────────────────────────────────────
+  # AssoLab Next.js app
+  # ─────────────────────────────────────────────────────────────────────────
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: assolab_app
+    restart: unless-stopped
+    networks:
+      - assolab_net
+    ports:
+      - "3000:3000"
+    volumes:
+      - sqlite_data:/app/data   # SQLite persistence
+    depends_on:
+      ollama:
+        condition: service_healthy
+      ollama-init:
+        condition: service_completed_successfully
+      searxng:
+        condition: service_started
+    environment:
+      # Ollama — points to the service by hostname within the Docker network
+      - OLLAMA_BASE_URL=http://ollama:11434
+      # SearXNG — self-hosted search
+      - SEARXNG_BASE_URL=http://searxng:8080
+      - OLLAMA_MODEL=${OLLAMA_MODEL:-qwen2.5:7b}
+      # Auth — CHANGE IN PRODUCTION
+      - JWT_SECRET=${JWT_SECRET:-change-me-in-production-use-a-32-char-random-string}
+      # App URL
+      - NEXT_PUBLIC_APP_URL=${NEXT_PUBLIC_APP_URL:-http://localhost:3000}
+      - NODE_ENV=production
+    healthcheck:
+      test: ["CMD", "curl", "-sf", "http://localhost:3000/api/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
